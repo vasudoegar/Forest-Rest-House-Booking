@@ -318,18 +318,30 @@ export default function App() {
         )}
         <h1 className="text-[#f8faf9] font-bold tracking-tight text-lg">{title}</h1>
       </div>
-      {showProfile && (
-        <button 
-          onClick={() => { setIsAdmin(!isAdmin); setView(isAdmin ? 'EXPLORE' : 'ADMIN_DASHBOARD'); }}
-          className="w-10 h-10 rounded-full border-2 border-[#2e4632] overflow-hidden"
-        >
-          <img 
-            src={isAdmin ? "https://lh3.googleusercontent.com/aida-public/AB6AXuAFrsnDKcW6tKVEUptdF_R6uecETe__yaJwkHvLbGwuXs5SOi0yeZlaIUQ_yzo4OTKhA6nUr64Gzw0qhneQb0HU_IOSfAdjo5rAJZROqYNorGQJAS0fycWlaSnIV4IveFQJy5Gpt1q252iq8W2_i_V71GBe3ru0h6hTSICExvgI510xr4buysMJokM0yUmEswqDvh1PtbII65VRkwnTJU-zSnMBrEb7w5RNLzhFvF_ReG7SGEsdkKBBQY9-FGoltat6FRVcvo3DMAM" : "https://i.pravatar.cc/150?u=guest"} 
-            alt="Profile" 
-            referrerPolicy="no-referrer"
-          />
-        </button>
-      )}
+      
+      <div className="flex items-center gap-4">
+        {isAdmin && (
+          <button 
+            onClick={handleCloudSync}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-tighter transition-all ${auth.currentUser ? 'bg-[#2e4632] text-[#f8faf9] border-transparent' : 'bg-[#ba1a1a] text-white border-transparent animate-pulse'}`}
+          >
+            <Globe size={12} />
+            {auth.currentUser ? 'Sync Active' : 'Enable Sync'}
+          </button>
+        )}
+        {showProfile && (
+          <button 
+            onClick={() => { setIsAdmin(!isAdmin); setView(isAdmin ? 'EXPLORE' : 'ADMIN_DASHBOARD'); }}
+            className="w-10 h-10 rounded-full border-2 border-[#2e4632] overflow-hidden"
+          >
+            <img 
+              src={isAdmin ? "https://lh3.googleusercontent.com/aida-public/AB6AXuAFrsnDKcW6tKVEUptdF_R6uecETe__yaJwkHvLbGwuXs5SOi0yeZlaIUQ_yzo4OTKhA6nUr64Gzw0qhneQb0HU_IOSfAdjo5rAJZROqYNorGQJAS0fycWlaSnIV4IveFQJy5Gpt1q252iq8W2_i_V71GBe3ru0h6hTSICExvgI510xr4buysMJokM0yUmEswqDvh1PtbII65VRkwnTJU-zSnMBrEb7w5RNLzhFvF_ReG7SGEsdkKBBQY9-FGoltat6FRVcvo3DMAM" : "https://i.pravatar.cc/150?u=guest"} 
+              alt="Profile" 
+              referrerPolicy="no-referrer"
+            />
+          </button>
+        )}
+      </div>
     </header>
   );
 
@@ -643,24 +655,24 @@ export default function App() {
           >
             <TopNav title="Forest Admin" />
             
-            <div className="p-6 md:p-12 w-full max-w-7xl mx-auto">
-              <div className="mb-12 flex justify-between items-end">
+            <div className="p-6 md:p-12 w-full max-w-7xl mx-auto mt-4">
+              <div className="mb-12 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 border-l-4 border-[#18301d] pl-6">
                 <div>
-                  <h2 className="text-5xl font-extrabold tracking-tighter text-[#18301d] mb-4">Manage Assets</h2>
-                  <p className="text-[#434842] max-w-2xl leading-relaxed italic">Select a rest house from the network below to review its current availability and manage upcoming guest bookings.</p>
+                  <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tighter text-[#18301d] mb-4">Manage Assets</h2>
+                  <p className="text-[#434842] max-w-2xl leading-relaxed italic opacity-70">Review current availability and coordinate guest schedules across the forest network.</p>
                 </div>
-                <button 
-                  onClick={handleCloudSync}
-                  className="flex items-center gap-3 px-6 py-4 bg-white border-2 border-[#18301d]/10 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:border-[#18301d] transition-all group"
-                >
-                  <Globe size={18} className={auth.currentUser ? "text-[#18301d]" : "text-[#ba1a1a] animate-pulse"} />
-                  <div className="text-left">
-                    <p className={auth.currentUser ? "text-[#18301d]" : "text-[#737971]"}>
-                      {auth.currentUser ? "Cloud Sync Active" : "Activate Cloud Sync"}
-                    </p>
-                    <p className="text-[8px] font-bold opacity-40 normal-case">{auth.currentUser?.email || "Verification Required"}</p>
-                  </div>
-                </button>
+                {!auth.currentUser && (
+                  <button 
+                    onClick={handleCloudSync}
+                    className="flex shrink-0 items-center gap-3 px-6 py-4 bg-white border-2 border-[#ba1a1a] rounded-2xl animate-pulse transition-all hover:bg-red-50 group"
+                  >
+                    <Globe size={18} className="text-[#ba1a1a]" />
+                    <div className="text-left">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-[#ba1a1a]">Activate Cloud Sync</p>
+                      <p className="text-[8px] font-bold opacity-40 normal-case">Identity Verification Required</p>
+                    </div>
+                  </button>
+                )}
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
