@@ -4,6 +4,17 @@
  */
 
 import { useState, useMemo, useEffect } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from 'firebase/auth';
+import { 
+  getFirestore, 
+  collection, 
+  onSnapshot, 
+  doc, 
+  setDoc, 
+  writeBatch
+} from 'firebase/firestore';
+import firebaseConfig from '../firebase-applet-config.json';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Compass, 
@@ -40,15 +51,78 @@ import { BookingCalendar } from './components/BookingCalendar';
 
 type View = 'SPLASH' | 'EXPLORE' | 'DETAIL' | 'ADMIN_DASHBOARD' | 'ADMIN_EDIT' | 'SET_DETAIL' | 'BOOKINGS';
 
-export default function App() {
-  const [restHouses, setRestHouses] = useState<ForestRestHouse[]>(() => {
-    const saved = localStorage.getItem('forestRestHouseData');
-    return saved ? JSON.parse(saved) : REST_HOUSES;
-  });
+// Firebase Initialization
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
+export default function App() {
+  const [restHouses, setRestHouses] = useState<ForestRestHouse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Real-time synchronization
   useEffect(() => {
-    localStorage.setItem('forestRestHouseData', JSON.stringify(restHouses));
-  }, [restHouses]);
+    const unsub = onSnapshot(collection(db, 'restHouses'), (snapshot) => {
+      if (!snapshot.empty) {
+        const houses = snapshot.docs.map(doc => doc.data() as ForestRestHouse);
+        setRestHouses(houses);
+        setIsLoading(false);
+      } else {
+        // Only setIsLoading(false) so the UI shows, 
+        // seeding will be handled by admin if needed
+        setIsLoading(false);
+      }
+    }, (error) => {
+      console.error("Firestore sync error:", error);
+      setIsLoading(false);
+    });
+
+    const authUnsub = onAuthStateChanged(auth, (user) => {
+      // In this version, we wait for explicit Google Login for writes
+    });
+
+    return () => { unsub(); authUnsub(); };
+  }, []);
+
+  const handleCloudSync = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      // Force account selection to ensure the user can pick the right email
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      
+      console.log("Authenticated as:", user.email);
+
+      if (user.email?.toLowerCase() !== "vasudoegar@gmail.com") {
+        alert(`Warning: You are signed in as ${user.email}, but only vasudoegar@gmail.com has cloud write permissions. Please sign in with the correct account.`);
+        return;
+      }
+      
+      // If DB is empty, admin can seed it now
+      if (restHouses.length === 0) {
+        console.log("Seeding initial data to Firestore...");
+        const batch = writeBatch(db);
+        REST_HOUSES.forEach(h => {
+          const restHouseRef = doc(db, 'restHouses', h.id);
+          batch.set(restHouseRef, h);
+        });
+        await batch.commit();
+        alert("Database seeded successfully! Your rest houses are now online.");
+      } else {
+        alert("Cloud Sync Activated! You can now save changes to the live database.");
+      }
+    } catch (error: any) {
+      console.error("Cloud Activation Error Details:", error);
+      if (error.code === 'permission-denied') {
+        alert("Permission Denied: Your account doesn't have authority to write to the database. Ensure you use vasudoegar@gmail.com");
+      } else if (error.code === 'auth/admin-restricted-operation') {
+        alert("Auth Provider Error: This operation is restricted. Please ensure Google Login is enabled in your Firebase console.");
+      } else {
+        alert(`Cloud activation failed: ${error.message}`);
+      }
+    }
+  };
 
   const [view, setView] = useState<View>('SPLASH');
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
@@ -133,8 +207,10 @@ export default function App() {
     setView('ADMIN_EDIT');
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedPropertyId || !selectedSetId) return;
+
+    let updatedRestHouse: ForestRestHouse | undefined;
 
     if (editStatus === 'BOOKED') {
       if (!editCheckIn || !editCheckOut || !editOccupant) {
@@ -166,55 +242,58 @@ export default function App() {
           checkOut: editCheckOut
         };
 
-        setRestHouses(prev => prev.map(h => {
-          if (h.id === selectedPropertyId) {
-            return {
-              ...h,
-              accommodationSets: h.accommodationSets.map(s => {
-                if (s.id === selectedSetId) {
-                  return {
-                    ...s,
-                    name: editSetName,
-                    description: editSetDesc,
-                    bookings: [...s.bookings, newBooking],
-                    status: 'BOOKED'
-                  };
-                }
-                return s;
-              })
-            };
-          }
-          return h;
-        }));
-      }
-    } else {
-      // Just updating status or other details without a new booking
-      setRestHouses(prev => prev.map(h => {
-        if (h.id === selectedPropertyId) {
-          return {
-            ...h,
-            accommodationSets: h.accommodationSets.map(s => {
+        updatedRestHouse = restHouses.find(h => h.id === selectedPropertyId);
+        if (updatedRestHouse) {
+          updatedRestHouse = {
+            ...updatedRestHouse,
+            accommodationSets: updatedRestHouse.accommodationSets.map(s => {
               if (s.id === selectedSetId) {
-                return { 
-                  ...s, 
-                  status: editStatus,
+                return {
+                  ...s,
                   name: editSetName,
-                  description: editSetDesc
+                  description: editSetDesc,
+                  bookings: [...s.bookings, newBooking],
+                  status: 'BOOKED'
                 };
               }
               return s;
             })
           };
         }
-        return h;
-      }));
+      }
+    } else {
+      updatedRestHouse = restHouses.find(h => h.id === selectedPropertyId);
+      if (updatedRestHouse) {
+        updatedRestHouse = {
+          ...updatedRestHouse,
+          accommodationSets: updatedRestHouse.accommodationSets.map(s => {
+            if (s.id === selectedSetId) {
+              return { 
+                ...s, 
+                status: editStatus,
+                name: editSetName,
+                description: editSetDesc
+              };
+            }
+            return s;
+          })
+        };
+      }
     }
 
-    setEditOccupant('');
-    setEditReference('');
-    setEditCheckIn('');
-    setEditCheckOut('');
-    setView('DETAIL');
+    if (updatedRestHouse) {
+      try {
+        await setDoc(doc(db, 'restHouses', selectedPropertyId), updatedRestHouse);
+        setEditOccupant('');
+        setEditReference('');
+        setEditCheckIn('');
+        setEditCheckOut('');
+        setView('DETAIL');
+      } catch (error) {
+        console.error("Error saving to Firebase:", error);
+        alert("Failed to save changes. Please check your connection.");
+      }
+    }
   };
 
   const handleLogout = () => {
@@ -282,59 +361,64 @@ export default function App() {
         {view === 'SPLASH' && (
           <motion.main 
             key="splash"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="relative min-h-screen flex items-center justify-center p-6"
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+            className="min-h-screen flex items-center justify-center bg-[#f8faf9] px-6"
           >
-            <div className="absolute inset-0 z-0">
-              <img 
-                src="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&q=80&w=1200" 
-                alt="Forest" 
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
-              <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
-            </div>
-            
-            <div className="relative z-10 w-full max-w-md bg-white p-10 rounded-2xl shadow-2xl flex flex-col items-center">
-              <div className="mb-8 p-4 bg-[#f8faf9] rounded-2xl scale-110">
-                <Trees size={40} className="text-[#18301d]" />
-              </div>
-              <h1 className="text-3xl font-extrabold text-[#18301d] mb-2 tracking-tight text-center">Forest Rest House Booking</h1>
-              <p className="text-[#434842] text-center mb-10 opacity-70">Reconnect with nature's silence.</p>
-              
-              <div className="w-full space-y-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[#737971] ml-1">Username</label>
-                  <input 
-                    value={loginUser}
-                    onChange={(e) => setLoginUser(e.target.value)}
-                    className="w-full h-14 px-6 bg-[#f2f4f3] rounded-xl border-none focus:ring-2 focus:ring-[#18301d] transition-all" 
-                    placeholder="Enter your username" 
-                  />
+            {isLoading ? (
+              <div className="flex flex-col items-center gap-4 text-center">
+                <Trees className="text-[#18301d] animate-bounce" size={64} />
+                <div>
+                  <h2 className="text-xl font-black text-[#18301d] uppercase tracking-widest mb-1">Syncing Database</h2>
+                  <p className="text-[10px] font-bold text-[#737971] uppercase tracking-[0.2em]">Asia-Southeast1 Gateway</p>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[#737971] ml-1">Password</label>
-                  <input 
-                    value={loginPass}
-                    onChange={(e) => setLoginPass(e.target.value)}
-                    className="w-full h-14 px-6 bg-[#f2f4f3] rounded-xl border-none focus:ring-2 focus:ring-[#18301d] transition-all" 
-                    type="password" 
-                    placeholder="••••••••" 
-                  />
+              </div>
+            ) : (
+              <div className="w-full max-w-md bg-white p-10 rounded-3xl shadow-xl border border-black/5">
+                <div className="flex justify-center mb-10">
+                  <div className="bg-[#18301d] p-4 rounded-3xl shadow-lg rotate-3">
+                    <Trees className="text-white" size={40} />
+                  </div>
                 </div>
                 
-                {loginError && (
-                  <p className="text-[10px] text-[#ba1a1a] font-bold uppercase tracking-widest text-center">Invalid credentials</p>
-                )}
+                <div className="text-center mb-10">
+                  <h1 className="text-4xl font-extrabold text-[#18301d] tracking-tight mb-2">H.P. Forest Dept.</h1>
+                  <p className="text-[10px] text-[#737971] uppercase font-bold tracking-[0.2em]">Rest House Booking Portal</p>
+                </div>
+                
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[#737971] ml-1">Username</label>
+                    <input 
+                      value={loginUser}
+                      onChange={(e) => setLoginUser(e.target.value)}
+                      className="w-full h-14 px-6 bg-[#f2f4f3] rounded-xl border-none focus:ring-2 focus:ring-[#18301d] transition-all" 
+                      placeholder="Enter your username" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[#737971] ml-1">Password</label>
+                    <input 
+                      value={loginPass}
+                      onChange={(e) => setLoginPass(e.target.value)}
+                      className="w-full h-14 px-6 bg-[#f2f4f3] rounded-xl border-none focus:ring-2 focus:ring-[#18301d] transition-all" 
+                      type="password" 
+                      placeholder="••••••••" 
+                    />
+                  </div>
+                  
+                  {loginError && (
+                    <p className="text-[10px] text-[#ba1a1a] font-bold uppercase tracking-widest text-center">Invalid credentials</p>
+                  )}
 
-                <button 
-                  onClick={handleLogin}
-                  className="w-full h-14 bg-[#18301d] text-white font-bold rounded-xl shadow-lg hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2"
-                >
-                  Login <ArrowRight size={18} />
-                </button>
+                  <button 
+                    onClick={handleLogin}
+                    className="w-full h-14 bg-[#18301d] text-white font-bold rounded-xl shadow-lg hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    Login <ArrowRight size={18} />
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </motion.main>
         )}
 
@@ -560,9 +644,23 @@ export default function App() {
             <TopNav title="Forest Admin" />
             
             <div className="p-6 md:p-12 w-full max-w-7xl mx-auto">
-              <div className="mb-12">
-                <h2 className="text-5xl font-extrabold tracking-tighter text-[#18301d] mb-4">Manage Assets</h2>
-                <p className="text-[#434842] max-w-2xl leading-relaxed italic">Select a rest house from the network below to review its current availability and manage upcoming guest bookings.</p>
+              <div className="mb-12 flex justify-between items-end">
+                <div>
+                  <h2 className="text-5xl font-extrabold tracking-tighter text-[#18301d] mb-4">Manage Assets</h2>
+                  <p className="text-[#434842] max-w-2xl leading-relaxed italic">Select a rest house from the network below to review its current availability and manage upcoming guest bookings.</p>
+                </div>
+                <button 
+                  onClick={handleCloudSync}
+                  className="flex items-center gap-3 px-6 py-4 bg-white border-2 border-[#18301d]/10 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:border-[#18301d] transition-all group"
+                >
+                  <Globe size={18} className={auth.currentUser ? "text-[#18301d]" : "text-[#ba1a1a] animate-pulse"} />
+                  <div className="text-left">
+                    <p className={auth.currentUser ? "text-[#18301d]" : "text-[#737971]"}>
+                      {auth.currentUser ? "Cloud Sync Active" : "Activate Cloud Sync"}
+                    </p>
+                    <p className="text-[8px] font-bold opacity-40 normal-case">{auth.currentUser?.email || "Verification Required"}</p>
+                  </div>
+                </button>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -738,12 +836,13 @@ export default function App() {
                                 No
                               </button>
                               <button 
-                                onClick={() => {
-                                  setRestHouses(prev => prev.map(h => {
-                                    if (h.id === selectedPropertyId) {
-                                      return {
-                                        ...h,
-                                        accommodationSets: h.accommodationSets.map(s => {
+                                onClick={async () => {
+                                  if (confirmDeleteId === b.id) {
+                                    const house = restHouses.find(h => h.id === selectedPropertyId);
+                                    if (house) {
+                                      const updatedHouse = {
+                                        ...house,
+                                        accommodationSets: house.accommodationSets.map(s => {
                                           if (s.id === selectedSetId) {
                                             const updatedBookings = s.bookings.filter(bk => bk.id !== b.id);
                                             return {
@@ -755,10 +854,15 @@ export default function App() {
                                           return s;
                                         })
                                       };
+                                      try {
+                                        await setDoc(doc(db, 'restHouses', selectedPropertyId!), updatedHouse);
+                                        setConfirmDeleteId(null);
+                                      } catch (error) {
+                                        console.error("Error deleting from Firebase:", error);
+                                        alert("Failed to cancel booking.");
+                                      }
                                     }
-                                    return h;
-                                  }));
-                                  setConfirmDeleteId(null);
+                                  }
                                 }}
                                 className="bg-[#ba1a1a] text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-lg hover:opacity-90"
                               >

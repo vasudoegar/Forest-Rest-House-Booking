@@ -1,0 +1,66 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // In this app, we don't have a complex RBAC yet, 
+    // but we can enforce it for any authenticated user for now.
+    function isAdmin() {
+      return isSignedIn();
+    }
+
+    function isValidBooking(booking) {
+      return booking.id is string && booking.id.size() <= 128
+          && booking.occupant is string && booking.occupant.size() <= 200
+          && (booking.reference == null || (booking.reference is string && booking.reference.size() <= 200))
+          && booking.checkIn is string && booking.checkIn.size() <= 10
+          && booking.checkOut is string && booking.checkOut.size() <= 10;
+    }
+
+    function isValidSet(set) {
+      return set.id is string && set.id.size() <= 128
+          && set.name is string && set.name.size() <= 100
+          && (set.description == null || (set.description is string && set.description.size() <= 1000))
+          && set.status in ['AVAILABLE', 'BOOKED', 'MAINTENANCE']
+          && set.bookings is list
+          && set.bookings.size() <= 100;
+          // Note: Cannot easily iterate list to call isValidBooking on each element in standard rules
+    }
+
+    function isValidForestRestHouse(data) {
+      return data.id is string && data.id.size() <= 128
+          && data.name is string && data.name.size() <= 200
+          && data.location is string && data.location.size() <= 200
+          && (data.description == null || (data.description is string && data.description.size() <= 2000))
+          && data.heroImage is string && data.heroImage.size() <= 1000
+          && data.accommodationSets is list
+          && data.accommodationSets.size() <= 20;
+    }
+
+    // --- Collections ---
+
+    match /restHouses/{restHouseId} {
+      // Allow everyone to read the properties
+      allow read: if true;
+
+      // Allow write operations only for the verified admin email
+      allow create, update, delete: if isSignedIn() 
+          && request.auth.token.email.lower() == "vasudoegar@gmail.com"
+          && isValidId(restHouseId);
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "entities": {
+    "BookingRecord": {
+      "title": "Booking Record",
+      "description": "Information about a single booking entry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "occupant": { "type": "string" },
+        "reference": { "type": "string" },
+        "checkIn": { "type": "string", "format": "date" },
+        "checkOut": { "type": "string", "format": "date" }
+      },
+      "required": ["id", "occupant", "checkIn", "checkOut"]
+    },
+    "AccommodationSet": {
+      "title": "Accommodation Set",
+      "description": "A set of rooms in a rest house",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["AVAILABLE", "BOOKED", "MAINTENANCE"] },
+        "bookings": {
+          "type": "array",
+          "items": { "$ref": "#/entities/BookingRecord" }
+        }
+      },
+      "required": ["id", "name", "status"]
+    },
+    "ForestRestHouse": {
+      "title": "Forest Rest House",
+      "description": "A forest rest house property",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "location": { "type": "string" },
+        "description": { "type": "string" },
+        "heroImage": { "type": "string" },
+        "accommodationSets": {
+          "type": "array",
+          "items": { "$ref": "#/entities/AccommodationSet" }
+        }
+      },
+      "required": ["id", "name", "location", "accommodationSets"]
+    }
+  },
+  "firestore": {
+    "/restHouses/{restHouseId}": {
+      "schema": "ForestRestHouse",
+      "description": "Storage for Forest Rest House properties and their bookings"
+    }
+  }
+}
