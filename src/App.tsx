@@ -48,7 +48,7 @@ import { REST_HOUSES } from './constants';
 import { ForestRestHouse, AccommodationSet, Status, BookingRecord } from './types';
 import { StatusBadge, PropertyCard, SetCard } from './components/ui';
 import { BookingCalendar } from './components/BookingCalendar';
-import logo from './assets/logo.png';
+const logo = "/logo.png?v=1";
 
 type View = 'SPLASH' | 'EXPLORE' | 'DETAIL' | 'ADMIN_DASHBOARD' | 'ADMIN_EDIT' | 'SET_DETAIL' | 'BOOKINGS';
 
