@@ -325,6 +325,7 @@ export default function App() {
               src="/logo.png" 
               alt="Logo" 
               className="w-10 h-10 object-contain"
+              referrerPolicy="no-referrer"
             />
             <button onClick={handleLogout} title="Logout" className="text-[#f8faf9] hover:bg-white/10 p-2 rounded-xl transition-all active:scale-90 opacity-60 hover:opacity-100">
               <LogOut size={18} />
@@ -399,6 +400,7 @@ export default function App() {
                     src="/logo.png" 
                     alt="Logo" 
                     className="w-32 h-32 relative z-10 drop-shadow-2xl"
+                    referrerPolicy="no-referrer"
                   />
                 </div>
                 <div>
@@ -416,6 +418,7 @@ export default function App() {
                       src="/logo.png" 
                       alt="HP Forest Logo" 
                       className="w-24 h-24 object-contain"
+                      referrerPolicy="no-referrer"
                     />
                   </div>
                 </div>
@@ -585,6 +588,7 @@ export default function App() {
                 src="/logo.png" 
                 alt="Logo" 
                 className="w-10 h-10 object-contain"
+                referrerPolicy="no-referrer"
               />
             </header>
 
