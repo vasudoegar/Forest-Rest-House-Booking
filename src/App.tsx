@@ -49,7 +49,7 @@ import { ForestRestHouse, AccommodationSet, Status, BookingRecord } from './type
 import { StatusBadge, PropertyCard, SetCard } from './components/ui';
 import { BookingCalendar } from './components/BookingCalendar';
 const logo = "/logo.png?v=1";
-const FALLBACK_LOGO = "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&q=80&w=200";
+const FALLBACK_LOGO = "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=200";
 
 type View = 'SPLASH' | 'EXPLORE' | 'DETAIL' | 'ADMIN_DASHBOARD' | 'ADMIN_EDIT' | 'SET_DETAIL' | 'BOOKINGS';
 
@@ -326,7 +326,7 @@ export default function App() {
             <img 
               src={logo} 
               alt="Logo" 
-              className="w-10 h-10 object-contain"
+              className="w-10 h-10 object-cover rounded-full"
               onError={(e) => e.currentTarget.src = FALLBACK_LOGO}
             />
             <button onClick={handleLogout} title="Logout" className="text-[#f8faf9] hover:bg-white/10 p-2 rounded-xl transition-all active:scale-90 opacity-60 hover:opacity-100">
@@ -401,7 +401,7 @@ export default function App() {
                   <img 
                     src={logo} 
                     alt="Logo" 
-                    className="w-32 h-32 relative z-10 drop-shadow-2xl"
+                    className="w-32 h-32 relative z-10 drop-shadow-2xl object-cover rounded-full"
                     onError={(e) => e.currentTarget.src = FALLBACK_LOGO}
                   />
                 </div>
@@ -419,7 +419,7 @@ export default function App() {
                     <img 
                       src={logo} 
                       alt="HP Forest Logo" 
-                      className="w-24 h-24 object-contain"
+                      className="w-24 h-24 object-cover rounded-full"
                       onError={(e) => e.currentTarget.src = FALLBACK_LOGO}
                     />
                   </div>
@@ -589,7 +589,7 @@ export default function App() {
               <img 
                 src={logo} 
                 alt="Logo" 
-                className="w-10 h-10 object-contain"
+                className="w-10 h-10 object-cover rounded-full"
                 onError={(e) => e.currentTarget.src = FALLBACK_LOGO}
               />
             </header>
