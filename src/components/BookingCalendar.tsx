@@ -7,6 +7,7 @@ import { ForestRestHouse } from '../types';
 interface Reservation {
   id: string;
   propertyName: string;
+  setName: string;
   guestName: string;
   reference: string;
   checkIn: Date;
@@ -15,8 +16,8 @@ interface Reservation {
 }
 
 export function BookingCalendar({ restHouses }: { restHouses: ForestRestHouse[] }) {
-  const today = new Date(2026, 3, 19); 
-  const [currentDate, setCurrentDate] = React.useState(new Date(2026, 3, 1));
+  const today = React.useMemo(() => new Date(), []);
+  const [currentDate, setCurrentDate] = React.useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDay, setSelectedDay] = React.useState<number | null>(null);
 
   // Derive reservations from restHouses state
@@ -28,6 +29,7 @@ export function BookingCalendar({ restHouses }: { restHouses: ForestRestHouse[] 
           list.push({
             id: b.id,
             propertyName: h.name,
+            setName: s.name,
             guestName: b.occupant,
             reference: b.reference,
             checkIn: new Date(b.checkIn),
@@ -151,11 +153,20 @@ export function BookingCalendar({ restHouses }: { restHouses: ForestRestHouse[] 
               >
                 <div className="flex gap-6">
                   <div className="w-16 h-16 bg-[#eceeed] rounded-2xl flex flex-col items-center justify-center">
-                    <span className="text-[10px] font-black uppercase text-[#737971] leading-none mb-1">{res.checkIn.toLocaleString('default', { month: 'short' })}</span>
-                    <span className="text-xl font-black text-[#18301d] leading-none">{res.checkIn.getDate()}</span>
+                    <span className="text-[10px] font-black uppercase text-[#737971] leading-none mb-1">
+                      {selectedDay 
+                        ? new Date(currentDate.getFullYear(), currentDate.getMonth(), selectedDay).toLocaleString('default', { month: 'short' })
+                        : res.checkIn.toLocaleString('default', { month: 'short' })}
+                    </span>
+                    <span className="text-xl font-black text-[#18301d] leading-none">
+                      {selectedDay ? selectedDay : res.checkIn.getDate()}
+                    </span>
                   </div>
                   <div className="flex flex-col justify-center">
-                    <h4 className="text-lg font-bold text-[#18301d] leading-tight mb-1">{res.propertyName}</h4>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="text-lg font-bold text-[#18301d] leading-tight">{res.propertyName}</h4>
+                      <span className="px-2 py-0.5 bg-[#18301d]/10 text-[#18301d] text-[10px] font-black rounded-md uppercase tracking-wider">{res.setName}</span>
+                    </div>
                     <div className="flex items-center gap-3 text-xs text-[#434842]">
                       <div className="flex items-center gap-1"><User size={14} className="opacity-60" /> {res.guestName}</div>
                       <div className="flex items-center gap-1"><ShieldCheck size={14} className="opacity-60" /> {res.reference}</div>

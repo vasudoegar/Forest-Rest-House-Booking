@@ -215,9 +215,9 @@ export default function App() {
 
     let updatedRestHouse: ForestRestHouse | undefined;
 
-    if (editStatus === 'BOOKED') {
+      if (editStatus === 'BOOKED') {
       if (!editCheckIn || !editCheckOut || !editOccupant) {
-        alert("Please enter essential booking details: Guest Name, Check-in and Check-out dates.");
+        alert("Please enter essential booking details: Guest Name and Booking Dates.");
         return;
       }
 
@@ -225,15 +225,20 @@ export default function App() {
       if (currentSet) {
         const newStart = new Date(editCheckIn);
         const newEnd = new Date(editCheckOut);
+        newStart.setHours(0,0,0,0);
+        newEnd.setHours(0,0,0,0);
 
         const hasOverlap = currentSet.bookings.some(b => {
           const bStart = new Date(b.checkIn);
           const bEnd = new Date(b.checkOut);
-          return (newStart < bEnd && newEnd > bStart);
+          bStart.setHours(0,0,0,0);
+          bEnd.setHours(0,0,0,0);
+          // Inclusive date overlap: room is booked for the entire date.
+          return (newStart <= bEnd && newEnd >= bStart);
         });
 
         if (hasOverlap) {
-          alert("Entry for these dates already made. Please check existing schedules for this set.");
+          alert("booking for some of these dates already done please select some other dates.");
           return;
         }
 
@@ -315,9 +320,16 @@ export default function App() {
             <ArrowLeft size={20} />
           </button>
         ) : (
-          <button onClick={handleLogout} title="Logout" className="text-[#f8faf9] hover:bg-white/10 p-2 rounded-xl transition-all active:scale-90 opacity-80 hover:opacity-100">
-            <LogOut size={20} />
-          </button>
+          <div className="flex items-center gap-2">
+            <img 
+              src="/logo.png" 
+              alt="Logo" 
+              className="w-10 h-10 object-contain"
+            />
+            <button onClick={handleLogout} title="Logout" className="text-[#f8faf9] hover:bg-white/10 p-2 rounded-xl transition-all active:scale-90 opacity-60 hover:opacity-100">
+              <LogOut size={18} />
+            </button>
+          </div>
         )}
         <h1 className="text-[#f8faf9] font-bold tracking-tight text-lg">{title}</h1>
       </div>
@@ -380,23 +392,36 @@ export default function App() {
             className="min-h-screen flex items-center justify-center bg-[#f8faf9] px-6"
           >
             {isLoading ? (
-              <div className="flex flex-col items-center gap-4 text-center">
-                <Trees className="text-[#18301d] animate-bounce" size={64} />
+              <div className="flex flex-col items-center gap-6 text-center">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-[#b2ceb3]/30 rounded-full blur-3xl animate-pulse" />
+                  <img 
+                    src="/logo.png" 
+                    alt="Logo" 
+                    className="w-32 h-32 relative z-10 drop-shadow-2xl"
+                  />
+                </div>
                 <div>
                   <h2 className="text-xl font-black text-[#18301d] uppercase tracking-widest mb-1">Syncing Database</h2>
                   <p className="text-[10px] font-bold text-[#737971] uppercase tracking-[0.2em]">Asia-Southeast1 Gateway</p>
                 </div>
               </div>
             ) : (
-              <div className="w-full max-w-md bg-white p-10 rounded-3xl shadow-xl border border-black/5">
-                <div className="flex justify-center mb-10">
-                  <div className="bg-[#18301d] p-4 rounded-3xl shadow-lg rotate-3">
-                    <Trees className="text-white" size={40} />
+              <div className="w-full max-w-md bg-white p-10 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-[#18301d]/5 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#b2ceb3] via-[#18301d] to-[#b2ceb3]" />
+                
+                <div className="flex justify-center mb-8">
+                  <div className="p-1 rounded-full border-2 border-[#18301d]/10">
+                    <img 
+                      src="/logo.png" 
+                      alt="HP Forest Logo" 
+                      className="w-24 h-24 object-contain"
+                    />
                   </div>
                 </div>
                 
                 <div className="text-center mb-10">
-                  <h1 className="text-4xl font-extrabold text-[#18301d] tracking-tight mb-2">H.P. Forest Dept.</h1>
+                  <h1 className="text-4xl font-extrabold text-[#18301d] tracking-tight mb-2">Mandi Forest Division</h1>
                   <p className="text-[10px] text-[#737971] uppercase font-bold tracking-[0.2em]">Rest House Booking Portal</p>
                 </div>
                 
@@ -556,7 +581,11 @@ export default function App() {
                 <ArrowLeft size={20} />
               </button>
               <h1 className="text-white font-bold tracking-tight text-lg">{selectedProperty.name}</h1>
-              <div className="w-10 h-10" />
+              <img 
+                src="/logo.png" 
+                alt="Logo" 
+                className="w-10 h-10 object-contain"
+              />
             </header>
 
             <div className="h-[40vh] relative">
@@ -602,7 +631,7 @@ export default function App() {
                     {selectedSet.bookings.map(b => (
                       <div key={b.id} className="bg-[#f2f4f3] p-8 rounded-2xl flex flex-col sm:flex-row gap-8 justify-between border border-black/5 hover:border-[#18301d]/20 transition-all">
                         <div className="flex flex-col gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-[#737971]">Check-in</span>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-[#737971]">Stay From</span>
                           <div className="flex items-center gap-3 text-[#18301d]">
                             <Calendar size={18} className="opacity-40" />
                             <p className="font-bold text-lg">{b.checkIn}</p>
@@ -610,7 +639,7 @@ export default function App() {
                         </div>
                         <div className="w-px h-full bg-black/5 hidden sm:block" />
                         <div className="flex flex-col gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-[#737971]">Check-out</span>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-[#737971]">Stay To</span>
                           <div className="flex items-center gap-3 text-[#18301d]">
                             <Calendar size={18} className="opacity-40" />
                             <p className="font-bold text-lg">{b.checkOut}</p>
@@ -766,29 +795,36 @@ export default function App() {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black tracking-widest uppercase text-[#434842]">Check-in Date</label>
-                    <div className="relative">
-                      <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-[#737971]" size={18} />
-                      <input 
-                        type="date"
-                        className="w-full h-14 pl-12 pr-4 bg-white rounded-xl border-none focus:ring-2 focus:ring-[#18301d] text-sm" 
-                        value={editCheckIn}
-                        onChange={(e) => setEditCheckIn(e.target.value)}
-                      />
-                    </div>
+                <div className="bg-white/50 p-8 rounded-2xl border border-[#18301d]/10 space-y-6">
+                  <div>
+                    <h3 className="text-sm font-black text-[#18301d] uppercase tracking-widest mb-1">Booking dates</h3>
+                    <p className="text-[10px] text-[#737971] italic">Please select dates for which room is required.</p>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black tracking-widest uppercase text-[#434842]">Check-out Date</label>
-                    <div className="relative">
-                      <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-[#737971]" size={18} />
-                      <input 
-                        type="date"
-                        className="w-full h-14 pl-12 pr-4 bg-white rounded-xl border-none focus:ring-2 focus:ring-[#18301d] text-sm" 
-                        value={editCheckOut}
-                        onChange={(e) => setEditCheckOut(e.target.value)}
-                      />
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black tracking-widest uppercase text-[#434842]">From Date</label>
+                      <div className="relative">
+                        <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-[#737971]" size={18} />
+                        <input 
+                          type="date"
+                          className="w-full h-14 pl-12 pr-4 bg-white rounded-xl border-none focus:ring-2 focus:ring-[#18301d] text-sm" 
+                          value={editCheckIn}
+                          onChange={(e) => setEditCheckIn(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black tracking-widest uppercase text-[#434842]">To Date</label>
+                      <div className="relative">
+                        <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-[#737971]" size={18} />
+                        <input 
+                          type="date"
+                          className="w-full h-14 pl-12 pr-4 bg-white rounded-xl border-none focus:ring-2 focus:ring-[#18301d] text-sm" 
+                          value={editCheckOut}
+                          onChange={(e) => setEditCheckOut(e.target.value)}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
