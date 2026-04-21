@@ -48,6 +48,7 @@ import { REST_HOUSES } from './constants';
 import { ForestRestHouse, AccommodationSet, Status, BookingRecord } from './types';
 import { StatusBadge, PropertyCard, SetCard } from './components/ui';
 import { BookingCalendar } from './components/BookingCalendar';
+import logo from './assets/logo.png';
 
 type View = 'SPLASH' | 'EXPLORE' | 'DETAIL' | 'ADMIN_DASHBOARD' | 'ADMIN_EDIT' | 'SET_DETAIL' | 'BOOKINGS';
 
@@ -322,10 +323,9 @@ export default function App() {
         ) : (
           <div className="flex items-center gap-2">
             <img 
-              src="/logo.png" 
+              src={logo} 
               alt="Logo" 
               className="w-10 h-10 object-contain"
-              referrerPolicy="no-referrer"
             />
             <button onClick={handleLogout} title="Logout" className="text-[#f8faf9] hover:bg-white/10 p-2 rounded-xl transition-all active:scale-90 opacity-60 hover:opacity-100">
               <LogOut size={18} />
@@ -397,10 +397,9 @@ export default function App() {
                 <div className="relative">
                   <div className="absolute inset-0 bg-[#b2ceb3]/30 rounded-full blur-3xl animate-pulse" />
                   <img 
-                    src="/logo.png" 
+                    src={logo} 
                     alt="Logo" 
                     className="w-32 h-32 relative z-10 drop-shadow-2xl"
-                    referrerPolicy="no-referrer"
                   />
                 </div>
                 <div>
@@ -415,10 +414,9 @@ export default function App() {
                 <div className="flex justify-center mb-8">
                   <div className="p-1 rounded-full border-2 border-[#18301d]/10">
                     <img 
-                      src="/logo.png" 
+                      src={logo} 
                       alt="HP Forest Logo" 
                       className="w-24 h-24 object-contain"
-                      referrerPolicy="no-referrer"
                     />
                   </div>
                 </div>
@@ -585,10 +583,9 @@ export default function App() {
               </button>
               <h1 className="text-white font-bold tracking-tight text-lg">{selectedProperty.name}</h1>
               <img 
-                src="/logo.png" 
+                src={logo} 
                 alt="Logo" 
                 className="w-10 h-10 object-contain"
-                referrerPolicy="no-referrer"
               />
             </header>
 
