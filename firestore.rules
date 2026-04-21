@@ -57,9 +57,9 @@ service cloud.firestore {
       // Allow everyone to read the properties
       allow read: if true;
 
-      // Allow write operations only for the verified admin email
+      // Allow write operations only for the verified admin emails
       allow create, update, delete: if isSignedIn() 
-          && request.auth.token.email.lower() == "vasudoegar@gmail.com"
+          && request.auth.token.email.lower() in ["vasudoegar@gmail.com", "dfomandi@gmail.com"]
           && isValidId(restHouseId);
     }
   }

@@ -94,8 +94,11 @@ export default function App() {
       
       console.log("Authenticated as:", user.email);
 
-      if (user.email?.toLowerCase() !== "vasudoegar@gmail.com") {
-        alert(`Warning: You are signed in as ${user.email}, but only vasudoegar@gmail.com has cloud write permissions. Please sign in with the correct account.`);
+      const AUTHORIZED_EMAILS = ["vasudoegar@gmail.com", "dfomandi@gmail.com"];
+      const userEmail = user.email?.toLowerCase();
+
+      if (!userEmail || !AUTHORIZED_EMAILS.includes(userEmail)) {
+        alert(`Warning: You are signed in as ${user.email}, but only authorized admins have cloud write permissions. Please sign in with an authorized account.`);
         return;
       }
       
