@@ -1,4 +1,4 @@
-export type Status = 'AVAILABLE' | 'BOOKED' | 'MAINTENANCE';
+export type Status = 'AVAILABLE' | 'BOOKED' | 'MAINTENANCE' | 'PARTIAL';
 
 export interface BookingRecord {
   id: string;

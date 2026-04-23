@@ -51,6 +51,33 @@ import { BookingCalendar } from './components/BookingCalendar';
 const logo = "/logo.png?v=1";
 const FALLBACK_LOGO = "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=200";
 
+const parseDate = (dateStr: string): Date | null => {
+  if (!dateStr) return null;
+  const parts = dateStr.split(/[/-]/);
+  let d: Date;
+  if (parts.length === 3) {
+    if (parts[0].length === 4) {
+      // YYYY-MM-DD or YYYY/MM/DD
+      d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    } else {
+      // DD-MM-YYYY or DD/MM/YYYY
+      d = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+    }
+  } else {
+    d = new Date(dateStr);
+  }
+  if (isNaN(d.getTime())) return null;
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const formatDate = (date: Date | null | string): string => {
+  if (!date) return '';
+  const d = typeof date === 'string' ? parseDate(date) : date;
+  if (!d) return '';
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+};
+
 type View = 'SPLASH' | 'EXPLORE' | 'DETAIL' | 'ADMIN_DASHBOARD' | 'ADMIN_EDIT' | 'SET_DETAIL' | 'BOOKINGS';
 
 // Firebase Initialization
@@ -248,8 +275,8 @@ export default function App() {
           id: Math.random().toString(36).substr(2, 9),
           occupant: editOccupant,
           reference: editReference,
-          checkIn: editCheckIn,
-          checkOut: editCheckOut
+          checkIn: formatDate(editCheckIn),
+          checkOut: formatDate(editCheckOut)
         };
 
         updatedRestHouse = restHouses.find(h => h.id === selectedPropertyId);
@@ -602,7 +629,16 @@ export default function App() {
                   <h2 className="text-5xl font-black">{selectedSet.name}</h2>
                   <p className="opacity-80 font-medium">{selectedSet.description}</p>
                 </div>
-                <StatusBadge status={selectedSet.status} />
+                <StatusBadge status={(() => {
+                  const today = new Date();
+                  today.setHours(0,0,0,0);
+                  const isBookedToday = selectedSet.bookings.some(b => {
+                    const start = parseDate(b.checkIn);
+                    const end = parseDate(b.checkOut);
+                    return start && end && today >= start && today <= end;
+                  });
+                  return isBookedToday ? 'BOOKED' : 'AVAILABLE';
+                })()} />
               </div>
             </div>
 
@@ -630,40 +666,59 @@ export default function App() {
                 ))}
               </div>
 
-              {selectedSet.bookings.length > 0 && (
-                <div className="space-y-6">
-                  <h3 className="text-xl font-bold text-[#18301d]">Usage Schedule</h3>
-                  <div className="grid grid-cols-1 gap-4">
-                    {selectedSet.bookings.map(b => (
-                      <div key={b.id} className="bg-[#f2f4f3] p-8 rounded-2xl flex flex-col sm:flex-row gap-8 justify-between border border-black/5 hover:border-[#18301d]/20 transition-all">
-                        <div className="flex flex-col gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-[#737971]">Stay From</span>
-                          <div className="flex items-center gap-3 text-[#18301d]">
-                            <Calendar size={18} className="opacity-40" />
-                            <p className="font-bold text-lg">{b.checkIn}</p>
+              {(() => {
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                const activeBookings = selectedSet.bookings.filter(b => {
+                  const end = parseDate(b.checkOut);
+                  return end && end >= today;
+                });
+                
+                if (activeBookings.length === 0) return null;
+
+                return (
+                  <div className="space-y-6">
+                    <h3 className="text-xl font-bold text-[#18301d]">Usage Schedule</h3>
+                    <div className="grid grid-cols-1 gap-4">
+                      {activeBookings.map(b => (
+                        <div key={b.id} className="bg-[#f2f4f3] p-8 rounded-2xl flex flex-col sm:flex-row gap-8 justify-between border border-black/5 hover:border-[#18301d]/20 transition-all">
+                          <div className="flex flex-col gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-[#737971]">Stay From</span>
+                            <div className="flex items-center gap-3 text-[#18301d]">
+                              <Calendar size={18} className="opacity-40" />
+                              <p className="font-bold text-lg">{formatDate(b.checkIn)}</p>
+                            </div>
+                          </div>
+                          <div className="w-px h-full bg-black/5 hidden sm:block" />
+                          <div className="flex flex-col gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-[#737971]">Stay To</span>
+                            <div className="flex items-center gap-3 text-[#18301d]">
+                              <Calendar size={18} className="opacity-40" />
+                              <p className="font-bold text-lg">{formatDate(b.checkOut)}</p>
+                            </div>
+                          </div>
+                          <div className="w-px h-full bg-black/5 hidden sm:block" />
+                          <div className="flex flex-col gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-[#737971]">Guest Detail</span>
+                            <div className="flex items-center gap-3 text-[#18301d]">
+                              <User size={18} className="opacity-40" />
+                              <p className="font-bold text-lg">{b.occupant}</p>
+                            </div>
+                          </div>
+                          <div className="w-px h-full bg-black/5 hidden sm:block" />
+                          <div className="flex flex-col gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-[#737971]">Authorized By</span>
+                            <div className="flex items-center gap-3 text-[#77574d]">
+                              <ShieldCheck size={18} className="opacity-60" />
+                              <p className="font-bold text-lg">{b.reference || 'N/A'}</p>
+                            </div>
                           </div>
                         </div>
-                        <div className="w-px h-full bg-black/5 hidden sm:block" />
-                        <div className="flex flex-col gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-[#737971]">Stay To</span>
-                          <div className="flex items-center gap-3 text-[#18301d]">
-                            <Calendar size={18} className="opacity-40" />
-                            <p className="font-bold text-lg">{b.checkOut}</p>
-                          </div>
-                        </div>
-                        <div className="w-px h-full bg-black/5 hidden sm:block" />
-                        <div className="flex flex-col gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-[#737971]">Guest Detail</span>
-                          <div className="flex items-center gap-3 text-[#18301d]">
-                            <User size={18} className="opacity-40" />
-                            <p className="font-bold text-lg">{b.occupant}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               <div className="bg-[#eceeed] p-8 rounded-2xl flex flex-col gap-6">
                 <div className="flex justify-between items-end">
@@ -718,7 +773,23 @@ export default function App() {
                   <div key={h.id} className="bg-white rounded-2xl overflow-hidden flex flex-col sm:flex-row shadow-sm hover:shadow-md transition-shadow group">
                     <div className="h-48 sm:h-auto sm:w-1/3 relative">
                       <img src={h.heroImage} alt={h.name} className="w-full h-full object-cover" />
-                      <div className="absolute top-2 left-2 px-3 py-1 bg-white/80 backdrop-blur-md rounded-md text-[8px] font-black tracking-widest uppercase">ACTIVE</div>
+                      <div className="absolute top-3 left-3">
+                        <StatusBadge status={(() => {
+                          const today = new Date();
+                          today.setHours(0,0,0,0);
+                          const total = h.accommodationSets.length;
+                          const occupied = h.accommodationSets.filter(s => 
+                            s.bookings.some(b => {
+                              const start = parseDate(b.checkIn);
+                              const end = parseDate(b.checkOut);
+                              return start && end && today >= start && today <= end;
+                            })
+                          ).length;
+                          if (occupied === total && total > 0) return 'BOOKED';
+                          if (occupied > 0) return 'PARTIAL';
+                          return 'AVAILABLE';
+                        })()} />
+                      </div>
                     </div>
                     <div className="p-6 sm:w-2/3 flex flex-col justify-between">
                       <div>
@@ -727,10 +798,32 @@ export default function App() {
                         <div className="mb-6 space-y-2">
                           <div className="flex justify-between items-end text-[10px] font-black tracking-widest opacity-60">
                             <span>OCCUPANCY</span>
-                            <span>85%</span>
+                            {(() => {
+                              const today = new Date();
+                              today.setHours(0,0,0,0);
+                              const total = h.accommodationSets.length;
+                              const occupied = h.accommodationSets.filter(s => 
+                                s.bookings.some(b => {
+                                  const start = parseDate(b.checkIn);
+                                  const end = parseDate(b.checkOut);
+                                  return start && end && today >= start && today <= end;
+                                })
+                              ).length;
+                              const percent = total > 0 ? Math.round((occupied / total) * 100) : 0;
+                              return <span>{percent}%</span>;
+                            })()}
                           </div>
                           <div className="flex h-1.5 gap-0.5 w-full bg-[#f2f4f3] rounded-full overflow-hidden">
-                            {[1,2,3,4].map(i => <div key={i} className={`h-full flex-1 ${i <= 3 ? 'bg-[#0f2e3a]' : 'bg-black/10'}`} />)}
+                            {h.accommodationSets.map((s, idx) => {
+                              const today = new Date();
+                              today.setHours(0,0,0,0);
+                              const isOccupied = s.bookings.some(b => {
+                                const start = parseDate(b.checkIn);
+                                const end = parseDate(b.checkOut);
+                                return start && end && today >= start && today <= end;
+                              });
+                              return <div key={idx} className={`h-full flex-1 ${isOccupied ? 'bg-[#0f2e3a]' : 'bg-black/10'}`} />;
+                            })}
                           </div>
                         </div>
                       </div>
@@ -872,19 +965,33 @@ export default function App() {
                   <button onClick={() => setView('DETAIL')} className="h-14 px-10 bg-[#fed3c7] text-[#77574d] font-black rounded-xl hover:opacity-90">CANCEL</button>
                 </div>
 
-                {selectedSet.bookings.length > 0 && (
-                  <div className="pt-8 border-t border-black/5 mt-8">
-                    <h4 className="text-[10px] font-black tracking-widest uppercase text-[#737971] mb-6">Existing Bookings for this Set</h4>
-                    <div className="space-y-4">
-                      {selectedSet.bookings.map(b => (
-                        <div key={b.id} className="bg-white p-4 rounded-xl flex justify-between items-center shadow-sm">
-                          <div>
-                            <p className="font-bold text-[#18301d] text-sm">{b.occupant}</p>
-                            <p className="text-[10px] text-[#434842] opacity-60 font-medium">
-                              {b.checkIn} — {b.checkOut}
-                            </p>
-                          </div>
-                          {confirmDeleteId === b.id ? (
+                {(() => {
+                  const today = new Date();
+                  today.setHours(0,0,0,0);
+                  const activeBookings = selectedSet.bookings.filter(b => {
+                    const end = parseDate(b.checkOut);
+                    // Hide if booking ended BEFORE today
+                    return end && end >= today;
+                  });
+
+                  if (activeBookings.length === 0) return null;
+
+                  return (
+                    <div className="pt-8 border-t border-black/5 mt-8">
+                      <h4 className="text-[10px] font-black tracking-widest uppercase text-[#737971] mb-6">Existing Bookings for this Set</h4>
+                      <div className="space-y-4">
+                        {activeBookings.map(b => (
+                          <div key={b.id} className="bg-white p-4 rounded-xl flex justify-between items-center shadow-sm">
+                            <div>
+                              <p className="font-bold text-[#18301d] text-sm">{b.occupant}</p>
+                              <p className="text-[10px] text-[#434842] opacity-60 font-medium">
+                                {formatDate(b.checkIn)} — {formatDate(b.checkOut)}
+                              </p>
+                              <p className="text-[10px] text-[#77574d] font-bold mt-1 uppercase tracking-wider">
+                                Ref: {b.reference || 'N/A'}
+                              </p>
+                            </div>
+                            {confirmDeleteId === b.id ? (
                             <div className="flex items-center gap-2">
                               <button 
                                 onClick={() => setConfirmDeleteId(null)}
@@ -940,7 +1047,8 @@ export default function App() {
                       ))}
                     </div>
                   </div>
-                )}
+                );
+              })()}
               </div>
               
               <div className="lg:col-span-5 space-y-6">

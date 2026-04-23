@@ -4,6 +4,26 @@ import { ChevronLeft, ChevronRight, MapPin, Calendar as CalendarIcon, User, Shie
 
 import { ForestRestHouse } from '../types';
 
+const parseDate = (dateStr: string): Date | null => {
+  if (!dateStr) return null;
+  const parts = dateStr.split(/[/-]/);
+  let d: Date;
+  if (parts.length === 3) {
+    if (parts[0].length === 4) {
+      // YYYY-MM-DD or YYYY/MM/DD
+      d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    } else {
+      // DD-MM-YYYY or DD/MM/YYYY
+      d = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+    }
+  } else {
+    d = new Date(dateStr);
+  }
+  if (isNaN(d.getTime())) return null;
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
 interface Reservation {
   id: string;
   propertyName: string;
@@ -22,20 +42,29 @@ export function BookingCalendar({ restHouses }: { restHouses: ForestRestHouse[] 
 
   // Derive reservations from restHouses state
   const reservations = React.useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
     const list: Reservation[] = [];
     restHouses.forEach(h => {
       h.accommodationSets.forEach(s => {
         s.bookings.forEach(b => {
-          list.push({
-            id: b.id,
-            propertyName: h.name,
-            setName: s.name,
-            guestName: b.occupant,
-            reference: b.reference,
-            checkIn: new Date(b.checkIn),
-            checkOut: new Date(b.checkOut),
-            status: 'BOOKED'
-          });
+          const startDate = parseDate(b.checkIn);
+          const endDate = parseDate(b.checkOut);
+          
+          // Only include bookings that are current or in the future
+          if (endDate && endDate >= today) {
+            list.push({
+              id: b.id,
+              propertyName: h.name,
+              setName: s.name,
+              guestName: b.occupant,
+              reference: b.reference,
+              checkIn: startDate || new Date(),
+              checkOut: endDate || new Date(),
+              status: 'BOOKED'
+            });
+          }
         });
       });
     });

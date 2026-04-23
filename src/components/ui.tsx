@@ -23,11 +23,39 @@ import {
 } from 'lucide-react';
 import { ForestRestHouse, AccommodationSet, Status } from '../types';
 
+const parseDate = (dateStr: string): Date | null => {
+  if (!dateStr) return null;
+  const parts = dateStr.split(/[/-]/);
+  let d: Date;
+  if (parts.length === 3) {
+    if (parts[0].length === 4) {
+      // YYYY-MM-DD or YYYY/MM/DD
+      d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    } else {
+      // DD-MM-YYYY or DD/MM/YYYY
+      d = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+    }
+  } else {
+    d = new Date(dateStr);
+  }
+  if (isNaN(d.getTime())) return null;
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const formatDate = (date: Date | null | string): string => {
+  if (!date) return '';
+  const d = typeof date === 'string' ? parseDate(date) : date;
+  if (!d) return '';
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+};
+
 // Status Badge Component
 export function StatusBadge({ status }: { status: Status }) {
   const config = {
     AVAILABLE: { bg: 'bg-[#cdeace]', text: 'text-[#08200f]', dot: 'bg-[#18301d]', label: 'Available' },
     BOOKED: { bg: 'bg-[#ffdad6]', text: 'text-[#93000a]', dot: 'bg-[#ba1a1a]', label: 'Booked' },
+    PARTIAL: { bg: 'bg-[#fff4d6]', text: 'text-[#856404]', dot: 'bg-[#ffc107]', label: 'Partially Booked' },
     MAINTENANCE: { bg: 'bg-[#e1e3e2]', text: 'text-[#434842]', dot: 'bg-[#737971]', label: 'Maintenance' },
   };
   
@@ -43,6 +71,26 @@ export function StatusBadge({ status }: { status: Status }) {
 
 // Property Card Component
 export function PropertyCard({ property, onClick }: { property: ForestRestHouse, onClick: () => void }) {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  
+  const totalSets = property.accommodationSets.length;
+  const occupiedSets = property.accommodationSets.filter(set => 
+    set.bookings.some(booking => {
+      const start = parseDate(booking.checkIn);
+      const end = parseDate(booking.checkOut);
+      return start && end && today >= start && today <= end;
+    })
+  ).length;
+
+  const occupancyPercent = totalSets > 0 ? Math.round((occupiedSets / totalSets) * 100) : 0;
+
+  const getDisplayStatus = () => {
+    if (occupiedSets === totalSets && totalSets > 0) return 'BOOKED';
+    if (occupiedSets > 0) return 'PARTIAL';
+    return 'AVAILABLE';
+  };
+
   return (
     <motion.article 
       whileHover={{ y: -4 }}
@@ -58,13 +106,13 @@ export function PropertyCard({ property, onClick }: { property: ForestRestHouse,
           referrerPolicy="no-referrer"
         />
         <div className="absolute top-4 left-4">
-          <StatusBadge status={property.accommodationSets.some(s => s.status === 'AVAILABLE') ? 'AVAILABLE' : 'BOOKED'} />
+          <StatusBadge status={getDisplayStatus()} />
         </div>
       </div>
       <div className="p-6">
         <div className="flex justify-between items-start mb-2">
           <h3 className="text-xl font-bold text-[#18301d]">{property.name}</h3>
-          <span className="text-[10px] font-bold text-[#737971] uppercase tracking-widest">{property.accommodationSets.length} Sets</span>
+          <span className="text-[10px] font-bold text-[#737971] uppercase tracking-widest">{occupancyPercent}% OCCUPANCY</span>
         </div>
         <p className="text-sm text-[#434842] line-clamp-2 leading-relaxed mb-6 italic">
           {property.description}
@@ -79,7 +127,19 @@ export function PropertyCard({ property, onClick }: { property: ForestRestHouse,
 
 // Set Card Component
 export function SetCard({ set, isAdmin = false, onEdit }: { set: AccommodationSet, isAdmin?: boolean, onEdit?: () => void }) {
-  const nextBooking = set.bookings.length > 0 ? set.bookings[0] : null;
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const activeBookings = set.bookings.filter(b => {
+    const end = parseDate(b.checkOut);
+    return end && end >= today;
+  });
+  const nextBooking = activeBookings.length > 0 ? activeBookings[0] : null;
+
+  const isBookedToday = set.bookings.some(b => {
+    const start = parseDate(b.checkIn);
+    const end = parseDate(b.checkOut);
+    return start && end && today >= start && today <= end;
+  });
 
   return (
     <article className="bg-white rounded-2xl p-6 shadow-[0_4px_24px_rgba(25,28,28,0.04)] flex flex-col gap-6 relative group">
@@ -89,7 +149,7 @@ export function SetCard({ set, isAdmin = false, onEdit }: { set: AccommodationSe
           <p className="text-xs text-[#434842] mt-1 uppercase tracking-wider font-medium">{set.description}</p>
         </div>
         <div className="flex items-center gap-4">
-          <StatusBadge status={set.status} />
+          <StatusBadge status={isBookedToday ? 'BOOKED' : 'AVAILABLE'} />
           {isAdmin && (
             <button 
               onClick={(e) => { e.stopPropagation(); onEdit?.(); }}
@@ -107,7 +167,7 @@ export function SetCard({ set, isAdmin = false, onEdit }: { set: AccommodationSe
             <div className="w-8 h-8 rounded-full bg-[#fed3c7] flex items-center justify-center text-[#77574d]">
               <User size={18} />
             </div>
-            <span className="text-sm font-bold">{nextBooking.occupant} {set.bookings.length > 1 && `(+${set.bookings.length - 1} more)`}</span>
+            <span className="text-sm font-bold">{nextBooking.occupant} {activeBookings.length > 1 && `(+${activeBookings.length - 1} more)`}</span>
           </div>
           <div className="flex items-center gap-3 text-[#434842] ml-1">
             <ShieldCheck size={18} className="opacity-70" />
@@ -115,7 +175,7 @@ export function SetCard({ set, isAdmin = false, onEdit }: { set: AccommodationSe
           </div>
           <div className="mt-2 pt-2 border-t border-black/5 flex justify-between items-center text-[10px] text-[#434842] uppercase tracking-[0.1em] font-bold">
             <span>UPCOMING IN</span>
-            <span>{nextBooking.checkIn}</span>
+            <span>{formatDate(nextBooking.checkIn)}</span>
           </div>
         </div>
       ) : (
