@@ -41,6 +41,7 @@ import {
   ArrowRight,
   LogOut,
   Trash2,
+  Download,
   Info,
   Globe,
   Wind
@@ -83,19 +84,17 @@ const generateAuthPDF = (booking: BookingRecord, restHouseName: string) => {
   const doc = new jsPDF();
   const todayStr = formatDate(new Date());
 
-  // Logo
-  const img = new Image();
-  img.src = logo;
-  img.onload = () => {
-    // Top Margin for Letterhead
+  const generate = (logoImg?: HTMLImageElement) => {
     const leftMargin = 20;
     let currentY = 20;
 
-    // Logo (centered)
-    doc.addImage(img, 'PNG', 85, 10, 40, 40);
-    currentY += 45;
+    if (logoImg) {
+      doc.addImage(logoImg, 'PNG', 85, 10, 40, 40);
+      currentY += 45;
+    } else {
+      currentY += 10;
+    }
 
-    // Header Details
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.text("GOVERNMENT OF HIMACHAL PRADESH", 105, currentY, { align: 'center' });
@@ -106,24 +105,20 @@ const generateAuthPDF = (booking: BookingRecord, restHouseName: string) => {
     doc.text("Office of Deputy Conservator of Forest (DCF), Mandi", 105, currentY, { align: 'center' });
     currentY += 15;
 
-    // Border Line
     doc.setLineWidth(0.5);
     doc.line(20, currentY, 190, currentY);
     currentY += 10;
 
-    // Reference & Date
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
     doc.text(`Ref No: DFO/MND/RH/${booking.id.toUpperCase()}`, leftMargin, currentY);
     doc.text(`Date: ${todayStr}`, 190, currentY, { align: 'right' });
     currentY += 20;
 
-    // Subject
     doc.setFont("helvetica", "bold");
     doc.text("Subject: Authorization for Stay at Rest House", 105, currentY, { align: 'center' });
     currentY += 15;
 
-    // Body
     doc.setFont("helvetica", "normal");
     const salutation = "To whom it may concern,";
     doc.text(salutation, leftMargin, currentY);
@@ -141,19 +136,22 @@ const generateAuthPDF = (booking: BookingRecord, restHouseName: string) => {
     doc.text(splitText, leftMargin, currentY);
     currentY += splitText.length * 7 + 25;
 
-    // Closing
     doc.setFont("helvetica", "bold");
     doc.text("Divisional Forest Officer (DCF),", 190, currentY, { align: 'right' });
     currentY += 7;
     doc.text("Mandi Forest Division, Mandi (H.P.)", 190, currentY, { align: 'right' });
     
-    // Footer
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
     doc.text("This is a computer-generated authorization. Valid only with official record verification.", 105, 285, { align: 'center' });
 
     doc.save(`Authorization_${booking.occupant.replace(/\s+/g, '_')}.pdf`);
   };
+
+  const img = new Image();
+  img.src = logo;
+  img.onload = () => generate(img);
+  img.onerror = () => generate();
 };
 
 type View = 'SPLASH' | 'EXPLORE' | 'DETAIL' | 'ADMIN_DASHBOARD' | 'ADMIN_EDIT' | 'SET_DETAIL' | 'BOOKINGS';
@@ -1076,6 +1074,12 @@ export default function App() {
                               <p className="text-[10px] text-[#77574d] font-bold mt-1 uppercase tracking-wider">
                                 Ref: {b.reference || 'N/A'}
                               </p>
+                              <button 
+                                onClick={() => generateAuthPDF(b, selectedProperty?.name || "Rest House")}
+                                className="mt-2 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-[#18301d] hover:opacity-70"
+                              >
+                                <Download size={12} /> Download Authorization
+                              </button>
                             </div>
                             {confirmDeleteId === b.id ? (
                             <div className="flex items-center gap-2">
