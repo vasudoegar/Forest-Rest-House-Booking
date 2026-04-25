@@ -124,7 +124,7 @@ const generateAuthPDF = (booking: BookingRecord, restHouseName: string) => {
     doc.text(salutation, leftMargin, currentY);
     currentY += 10;
 
-    let bodyText = `This is to certify that Shri/Smt. ${booking.occupant} is hereby authorized to stay at ${restHouseName} during the period from ${booking.checkIn} to ${booking.checkOut}.`;
+    let bodyText = `This is to certify that Shri/Smt. ${booking.occupant} is hereby authorized to stay at ${restHouseName} during the period from ${formatDate(booking.checkIn)} to ${formatDate(booking.checkOut)}.`;
     
     if (booking.reference && booking.reference.trim() !== "") {
       bodyText += `\n\nThis booking has been processed and initiated on the reference of ${booking.reference}.`;
