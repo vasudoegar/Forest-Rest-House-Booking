@@ -16,6 +16,7 @@ import {
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 import { motion, AnimatePresence } from 'motion/react';
+import { jsPDF } from 'jspdf';
 import { 
   Compass, 
   MapPin, 
@@ -76,6 +77,83 @@ const formatDate = (date: Date | null | string): string => {
   const d = typeof date === 'string' ? parseDate(date) : date;
   if (!d) return '';
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+};
+
+const generateAuthPDF = (booking: BookingRecord, restHouseName: string) => {
+  const doc = new jsPDF();
+  const todayStr = formatDate(new Date());
+
+  // Logo
+  const img = new Image();
+  img.src = logo;
+  img.onload = () => {
+    // Top Margin for Letterhead
+    const leftMargin = 20;
+    let currentY = 20;
+
+    // Logo (centered)
+    doc.addImage(img, 'PNG', 85, 10, 40, 40);
+    currentY += 45;
+
+    // Header Details
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("GOVERNMENT OF HIMACHAL PRADESH", 105, currentY, { align: 'center' });
+    currentY += 7;
+    doc.text("DEPARTMENT OF FORESTS", 105, currentY, { align: 'center' });
+    currentY += 7;
+    doc.setFontSize(12);
+    doc.text("Office of Deputy Conservator of Forest (DCF), Mandi", 105, currentY, { align: 'center' });
+    currentY += 15;
+
+    // Border Line
+    doc.setLineWidth(0.5);
+    doc.line(20, currentY, 190, currentY);
+    currentY += 10;
+
+    // Reference & Date
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.text(`Ref No: DFO/MND/RH/${booking.id.toUpperCase()}`, leftMargin, currentY);
+    doc.text(`Date: ${todayStr}`, 190, currentY, { align: 'right' });
+    currentY += 20;
+
+    // Subject
+    doc.setFont("helvetica", "bold");
+    doc.text("Subject: Authorization for Stay at Rest House", 105, currentY, { align: 'center' });
+    currentY += 15;
+
+    // Body
+    doc.setFont("helvetica", "normal");
+    const salutation = "To whom it may concern,";
+    doc.text(salutation, leftMargin, currentY);
+    currentY += 10;
+
+    let bodyText = `This is to certify that Shri/Smt. ${booking.occupant} is hereby authorized to stay at ${restHouseName} during the period from ${booking.checkIn} to ${booking.checkOut}.`;
+    
+    if (booking.reference && booking.reference.trim() !== "") {
+      bodyText += `\n\nThis booking has been processed and initiated on the reference of ${booking.reference}.`;
+    }
+    
+    bodyText += `\n\nThe concerned Rest House In-charge/Chowkidar is requested to provide necessary assistance and ensure a comfortable stay for the authorized personnel.`;
+    
+    const splitText = doc.splitTextToSize(bodyText, 170);
+    doc.text(splitText, leftMargin, currentY);
+    currentY += splitText.length * 7 + 25;
+
+    // Closing
+    doc.setFont("helvetica", "bold");
+    doc.text("Divisional Forest Officer (DCF),", 190, currentY, { align: 'right' });
+    currentY += 7;
+    doc.text("Mandi Forest Division, Mandi (H.P.)", 190, currentY, { align: 'right' });
+    
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text("This is a computer-generated authorization. Valid only with official record verification.", 105, 285, { align: 'center' });
+
+    doc.save(`Authorization_${booking.occupant.replace(/\s+/g, '_')}.pdf`);
+  };
 };
 
 type View = 'SPLASH' | 'EXPLORE' | 'DETAIL' | 'ADMIN_DASHBOARD' | 'ADMIN_EDIT' | 'SET_DETAIL' | 'BOOKINGS';
@@ -243,8 +321,9 @@ export default function App() {
     if (!selectedPropertyId || !selectedSetId) return;
 
     let updatedRestHouse: ForestRestHouse | undefined;
+    let bookingToGenerate: BookingRecord | null = null;
 
-      if (editStatus === 'BOOKED') {
+    if (editStatus === 'BOOKED') {
       if (!editCheckIn || !editCheckOut || !editOccupant) {
         alert("Please enter essential booking details: Guest Name and Booking Dates.");
         return;
@@ -278,6 +357,7 @@ export default function App() {
           checkIn: formatDate(editCheckIn),
           checkOut: formatDate(editCheckOut)
         };
+        bookingToGenerate = newBooking;
 
         updatedRestHouse = restHouses.find(h => h.id === selectedPropertyId);
         if (updatedRestHouse) {
@@ -321,6 +401,12 @@ export default function App() {
     if (updatedRestHouse) {
       try {
         await setDoc(doc(db, 'restHouses', selectedPropertyId), updatedRestHouse);
+        
+        // Generate PDF if a booking was added
+        if (bookingToGenerate) {
+          generateAuthPDF(bookingToGenerate, selectedProperty?.name || "Rest House");
+        }
+
         setEditOccupant('');
         setEditReference('');
         setEditCheckIn('');
