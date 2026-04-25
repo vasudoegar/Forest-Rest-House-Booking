@@ -154,6 +154,76 @@ const generateAuthPDF = (booking: BookingRecord, restHouseName: string) => {
   img.onerror = () => generate();
 };
 
+const generateCancellationPDF = (booking: BookingRecord, restHouseName: string) => {
+  const doc = new jsPDF();
+  const todayStr = formatDate(new Date());
+
+  const generate = (logoImg?: HTMLImageElement) => {
+    const leftMargin = 20;
+    let currentY = 20;
+
+    if (logoImg) {
+      doc.addImage(logoImg, 'PNG', 85, 10, 40, 40);
+      currentY += 45;
+    } else {
+      currentY += 10;
+    }
+
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("GOVERNMENT OF HIMACHAL PRADESH", 105, currentY, { align: 'center' });
+    currentY += 7;
+    doc.text("DEPARTMENT OF FORESTS", 105, currentY, { align: 'center' });
+    currentY += 7;
+    doc.setFontSize(12);
+    doc.text("Office of Deputy Conservator of Forest (DCF), Mandi", 105, currentY, { align: 'center' });
+    currentY += 15;
+
+    doc.setLineWidth(0.5);
+    doc.line(20, currentY, 190, currentY);
+    currentY += 10;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.text(`Ref No: DFO/MND/RH/CAN/${booking.id.toUpperCase()}`, leftMargin, currentY);
+    doc.text(`Date: ${todayStr}`, 190, currentY, { align: 'right' });
+    currentY += 20;
+
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(200, 0, 0); 
+    doc.text("Subject: Cancellation of Booking for Stay at Rest House", 105, currentY, { align: 'center' });
+    doc.setTextColor(0, 0, 0);
+    currentY += 15;
+
+    doc.setFont("helvetica", "normal");
+    const salutation = "To whom it may concern,";
+    doc.text(salutation, leftMargin, currentY);
+    currentY += 10;
+
+    const bodyText = `This is to inform that the booking of Shri/Smt. ${booking.occupant} for stay at ${restHouseName} during the period from ${formatDate(booking.checkIn)} to ${formatDate(booking.checkOut)} stands CANCELLED with effect from ${todayStr}.\n\nThe earlier authorization issued under reference DFO/MND/RH/${booking.id.toUpperCase()} is hereby revoked.\n\nAll concerned are requested to update their records accordingly and release the occupancy for other requirements.`;
+    
+    const splitText = doc.splitTextToSize(bodyText, 170);
+    doc.text(splitText, leftMargin, currentY);
+    currentY += splitText.length * 7 + 25;
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Divisional Forest Officer (DCF),", 190, currentY, { align: 'right' });
+    currentY += 7;
+    doc.text("Mandi Forest Division, Mandi (H.P.)", 190, currentY, { align: 'right' });
+    
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text("This is a computer-generated cancellation advice. Valid only with official record verification.", 105, 285, { align: 'center' });
+
+    doc.save(`Cancellation_${booking.occupant.replace(/\s+/g, '_')}.pdf`);
+  };
+
+  const img = new Image();
+  img.src = logo;
+  img.onload = () => generate(img);
+  img.onerror = () => generate();
+};
+
 type View = 'SPLASH' | 'EXPLORE' | 'DETAIL' | 'ADMIN_DASHBOARD' | 'ADMIN_EDIT' | 'SET_DETAIL' | 'BOOKINGS';
 
 // Firebase Initialization
@@ -1094,6 +1164,7 @@ export default function App() {
                                   if (confirmDeleteId === b.id) {
                                     const house = restHouses.find(h => h.id === selectedPropertyId);
                                     if (house) {
+                                      generateCancellationPDF(b, house.name);
                                       const updatedHouse = {
                                         ...house,
                                         accommodationSets: house.accommodationSets.map(s => {
