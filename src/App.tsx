@@ -80,6 +80,20 @@ const formatDate = (date: Date | null | string): string => {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 };
 
+const isAvailable = (bookings: BookingRecord[], checkIn: string, checkOut: string) => {
+  if (!checkIn || !checkOut) return true;
+  const targetStart = parseDate(checkIn);
+  const targetEnd = parseDate(checkOut);
+  if (!targetStart || !targetEnd) return true;
+  
+  return !bookings.some(b => {
+    const bStart = parseDate(b.checkIn);
+    const bEnd = parseDate(b.checkOut);
+    if (!bStart || !bEnd) return false;
+    return (targetStart <= bEnd && targetEnd >= bStart);
+  });
+};
+
 const generateAuthPDF = (booking: BookingRecord, restHouseName: string) => {
   const doc = new jsPDF();
   const todayStr = formatDate(new Date());
@@ -236,7 +250,7 @@ const generateCancellationPDF = (booking: BookingRecord, restHouseName: string) 
   img.onerror = () => generate();
 };
 
-type View = 'SPLASH' | 'EXPLORE' | 'DETAIL' | 'ADMIN_DASHBOARD' | 'ADMIN_EDIT' | 'SET_DETAIL' | 'BOOKINGS';
+type View = 'SPLASH' | 'EXPLORE' | 'DETAIL' | 'ADMIN_DASHBOARD' | 'ADMIN_EDIT' | 'SET_DETAIL' | 'BOOKINGS' | 'NEW_BOOKING';
 
 // Firebase Initialization
 const app = initializeApp(firebaseConfig);
@@ -354,6 +368,16 @@ export default function App() {
   const [editSetName, setEditSetName] = useState('');
   const [editSetDesc, setEditSetDesc] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [bookingDetails, setBookingDetails] = useState({ 
+    occupant: '', 
+    checkIn: '', 
+    checkOut: '', 
+    reference: '' 
+  });
+  const [selectedHouseId, setSelectedHouseId] = useState('');
+  const [roomsRequired, setRoomsRequired] = useState(1);
+  const [availableSets, setAvailableSets] = useState<AccommodationSet[]>([]);
+  const [selectedSets, setSelectedSets] = useState<string[]>([]);
 
   const selectedProperty = useMemo(() => 
     restHouses.find(h => h.id === selectedPropertyId), 
@@ -560,14 +584,16 @@ export default function App() {
     <nav className="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-8 pt-4 bg-[#f8faf9]/80 backdrop-blur-xl rounded-t-3xl shadow-[0_-4px_24px_rgba(0,0,0,0.04)]">
       {[
         { id: 'explore', icon: Trees, label: 'Explore' },
-        { id: 'bookings', icon: Calendar, label: 'Bookings' }
+        { id: 'bookings', icon: Calendar, label: 'Bookings' },
+        ...(isAdmin ? [{ id: 'new-booking', icon: CheckCircle, label: 'Make Booking' }] : [])
       ].map((tab) => (
         <button 
           key={tab.id}
           className={`flex flex-col items-center gap-1.5 p-2 transition-all duration-300 ${active === tab.id ? 'text-[#18301d]' : 'text-[#434842] opacity-60'}`}
           onClick={() => {
-            if (tab.id === 'explore') setView('EXPLORE');
+            if (tab.id === 'explore') setView(isAdmin ? 'ADMIN_DASHBOARD' : 'EXPLORE');
             if (tab.id === 'bookings') setView('BOOKINGS');
+            if (tab.id === 'new-booking') setView('NEW_BOOKING');
           }}
         >
           <tab.icon size={20} strokeWidth={active === tab.id ? 2.5 : 2} />
@@ -906,6 +932,238 @@ export default function App() {
           </motion.main>
         )}
 
+        {view === 'NEW_BOOKING' && (
+          <motion.main 
+            key="new-booking"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="min-h-screen pt-24 pb-32"
+          >
+            <TopNav title="System Console" />
+            
+            <div className="p-6 md:p-12 w-full max-w-4xl mx-auto mt-4">
+              <div className="mb-12 border-l-4 border-[#18301d] pl-6">
+                <h2 className="text-4xl font-extrabold tracking-tighter text-[#18301d] mb-4 uppercase">Batch Authorization</h2>
+                <p className="text-[#434842] leading-relaxed italic opacity-70">Process multi-room reservations and generate system credentials in one sequence.</p>
+              </div>
+
+              <div className="bg-white border-2 border-[#18301d]/10 p-8 rounded-3xl space-y-8 shadow-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#77574d]">Occupant Name</label>
+                    <div className="relative">
+                      <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#77574d]/40" />
+                      <input 
+                        type="text"
+                        value={bookingDetails.occupant}
+                        onChange={(e) => setBookingDetails(prev => ({ ...prev, occupant: e.target.value }))}
+                        placeholder="Enter full name"
+                        className="w-full bg-[#f8f5f2] border-2 border-transparent focus:border-[#18301d]/20 rounded-xl p-4 pl-12 text-sm font-bold tracking-wide outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#77574d]">Reference Authority</label>
+                    <div className="relative">
+                      <ShieldCheck size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#77574d]/40" />
+                      <input 
+                        type="text"
+                        value={bookingDetails.reference}
+                        onChange={(e) => setBookingDetails(prev => ({ ...prev, reference: e.target.value }))}
+                        placeholder="Designation / Name"
+                        className="w-full bg-[#f8f5f2] border-2 border-transparent focus:border-[#18301d]/20 rounded-xl p-4 pl-12 text-sm font-bold tracking-wide outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#77574d]">From Date</label>
+                    <div className="relative">
+                      <Calendar size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#77574d]/40" />
+                      <input 
+                        type="date"
+                        value={bookingDetails.checkIn}
+                        onChange={(e) => setBookingDetails(prev => ({ ...prev, checkIn: e.target.value }))}
+                        className="w-full bg-[#f8f5f2] border-2 border-transparent focus:border-[#18301d]/20 rounded-xl p-4 pl-12 text-sm font-bold tracking-wide outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#77574d]">To Date</label>
+                    <div className="relative">
+                      <Calendar size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#77574d]/40" />
+                      <input 
+                        type="date"
+                        value={bookingDetails.checkOut}
+                        onChange={(e) => setBookingDetails(prev => ({ ...prev, checkOut: e.target.value }))}
+                        className="w-full bg-[#f8f5f2] border-2 border-transparent focus:border-[#18301d]/20 rounded-xl p-4 pl-12 text-sm font-bold tracking-wide outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#77574d]">Target Facility</label>
+                    <div className="relative">
+                      <MapPin size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#77574d]/40" />
+                      <select 
+                        value={selectedHouseId}
+                        onChange={(e) => {
+                          setSelectedHouseId(e.target.value);
+                          setAvailableSets([]);
+                          setSelectedSets([]);
+                        }}
+                        className="w-full bg-[#f8f5f2] border-2 border-transparent focus:border-[#18301d]/20 rounded-xl p-4 pl-12 text-sm font-bold uppercase tracking-wide outline-none transition-all appearance-none"
+                      >
+                        <option value="">SELECT PROPERTY</option>
+                        {restHouses.map(h => (
+                          <option key={h.id} value={h.id}>{h.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#77574d]">Inventory Request</label>
+                    <div className="relative">
+                      <Wind size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#77574d]/40" />
+                      <input 
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={roomsRequired}
+                        onChange={(e) => setRoomsRequired(Number(e.target.value))}
+                        className="w-full bg-[#f8f5f2] border-2 border-transparent focus:border-[#18301d]/20 rounded-xl p-4 pl-12 text-sm font-bold uppercase tracking-wide outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => {
+                    if (!selectedHouseId || !bookingDetails.checkIn || !bookingDetails.checkOut) {
+                      alert("Please fill all mandatory logistics.");
+                      return;
+                    }
+                    const house = restHouses.find(h => h.id === selectedHouseId);
+                    if (house) {
+                      const available = house.accommodationSets.filter(set => 
+                        isAvailable(set.bookings, bookingDetails.checkIn, bookingDetails.checkOut)
+                      );
+                      setAvailableSets(available);
+                      if (available.length === 0) {
+                        alert("Zero availability for selected configuration.");
+                      }
+                    }
+                  }}
+                  className="w-full py-5 bg-[#18301d] text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-xl shadow-[#18301d]/10"
+                >
+                  Query Inventory <ArrowRight size={18} />
+                </button>
+
+                {availableSets.length > 0 && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="pt-10 border-t-2 border-[#18301d]/5"
+                  >
+                    <div className="flex justify-between items-end mb-6">
+                      <div>
+                        <h4 className="text-xl font-extrabold text-[#18301d]">Live Inventory</h4>
+                        <p className="text-[10px] font-bold text-[#77574d] uppercase tracking-widest opacity-60">Select up to {roomsRequired} units</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-black text-[#18301d]">{selectedSets.length}/{roomsRequired}</p>
+                        <p className="text-[8px] font-black uppercase tracking-widest opacity-40">Allocated</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                      {availableSets.map(set => (
+                        <button
+                          key={set.id}
+                          onClick={() => {
+                            if (selectedSets.includes(set.id)) {
+                              setSelectedSets(prev => prev.filter(id => id !== set.id));
+                            } else if (selectedSets.length < roomsRequired) {
+                              setSelectedSets(prev => [...prev, set.id]);
+                            }
+                          }}
+                          className={`p-6 rounded-2xl border-2 transition-all text-left flex flex-col gap-1 ${
+                            selectedSets.includes(set.id) 
+                              ? 'border-[#18301d] bg-[#18301d] text-white' 
+                              : 'border-[#18301d]/10 bg-[#f8f5f2] text-[#18301d] hover:border-[#18301d]/30'
+                          }`}
+                        >
+                          <p className="text-[10px] font-black uppercase tracking-widest">{set.name}</p>
+                          <p className={`text-[8px] font-bold uppercase ${selectedSets.includes(set.id) ? 'text-white/60' : 'text-[#77574d]'}`}>Max Load: {set.capacity} Person</p>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="mt-10 flex gap-4">
+                      <button 
+                        disabled={selectedSets.length === 0 || !bookingDetails.occupant}
+                        onClick={async () => {
+                          const house = restHouses.find(h => h.id === selectedHouseId);
+                          if (house) {
+                            const newBookingId = Math.random().toString(36).substr(2, 9);
+                            const updatedHouse = {
+                              ...house,
+                              accommodationSets: house.accommodationSets.map(s => {
+                                if (selectedSets.includes(s.id)) {
+                                  const newBooking: BookingRecord = {
+                                    id: newBookingId + '-' + s.id,
+                                    ...bookingDetails
+                                  };
+                                  return { ...s, bookings: [...s.bookings, newBooking] };
+                                }
+                                return s;
+                              })
+                            };
+                            
+                            try {
+                              await setDoc(doc(db, 'restHouses', selectedHouseId), updatedHouse);
+                              
+                              const sampleBooking = {
+                                id: newBookingId,
+                                ...bookingDetails
+                              };
+                              generateAuthPDF(sampleBooking, house.name);
+                              
+                              setBookingDetails({ occupant: '', checkIn: '', checkOut: '', reference: '' });
+                              setSelectedHouseId('');
+                              setAvailableSets([]);
+                              setSelectedSets([]);
+                              setView('ADMIN_DASHBOARD');
+                            } catch (error) {
+                              alert("System transmission failure. Check console.");
+                              console.error(error);
+                            }
+                          }
+                        }}
+                        className={`flex-1 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] transition-all shadow-xl ${
+                          selectedSets.length > 0 && bookingDetails.occupant
+                            ? 'bg-[#18301d] text-white hover:opacity-90 shadow-[#18301d]/20'
+                            : 'bg-[#18301d]/10 text-[#18301d]/20 cursor-not-allowed shadow-none'
+                        }`}
+                      >
+                        Finalize Batch {selectedSets.length} Units
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setAvailableSets([]);
+                          setSelectedSets([]);
+                        }}
+                        className="px-8 py-5 bg-[#f2f4f3] text-[#77574d] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black/5"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+            </div>
+
+            <BottomTab active="new-booking" />
+          </motion.main>
+        )}
+
         {view === 'ADMIN_DASHBOARD' && (
           <motion.main 
             key="admin-dash"
@@ -1005,7 +1263,7 @@ export default function App() {
               </div>
             </div>
             
-            <BottomTab active="bookings" />
+            <BottomTab active="explore" />
           </motion.main>
         )}
 
