@@ -124,7 +124,13 @@ const generateAuthPDF = (booking: BookingRecord, restHouseName: string) => {
     doc.text(salutation, leftMargin, currentY);
     currentY += 10;
 
-    let bodyText = `This is to certify that Shri/Smt. ${booking.occupant} is hereby authorized to stay at ${restHouseName} during the period from ${formatDate(booking.checkIn)} to ${formatDate(booking.checkOut)}.`;
+    const checkInFormatted = formatDate(booking.checkIn);
+    const checkOutFormatted = formatDate(booking.checkOut);
+    const dateText = checkInFormatted === checkOutFormatted 
+      ? `for ${checkInFormatted}` 
+      : `during the period from ${checkInFormatted} to ${checkOutFormatted}`;
+
+    let bodyText = `This is to certify that Shri/Smt. ${booking.occupant} is hereby authorized to stay at ${restHouseName} ${dateText}.`;
     
     if (booking.reference && booking.reference.trim() !== "") {
       bodyText += `\n\nThis booking has been processed and initiated on the reference of ${booking.reference}.`;
@@ -200,7 +206,13 @@ const generateCancellationPDF = (booking: BookingRecord, restHouseName: string) 
     doc.text(salutation, leftMargin, currentY);
     currentY += 10;
 
-    const bodyText = `This is to inform that the booking of Shri/Smt. ${booking.occupant} for stay at ${restHouseName} during the period from ${formatDate(booking.checkIn)} to ${formatDate(booking.checkOut)} stands CANCELLED with effect from ${todayStr}.\n\nThe earlier authorization issued under reference DFO/MND/RH/${booking.id.toUpperCase()} is hereby revoked.\n\nAll concerned are requested to update their records accordingly and release the occupancy for other requirements.`;
+    const checkInFormatted = formatDate(booking.checkIn);
+    const checkOutFormatted = formatDate(booking.checkOut);
+    const dateText = checkInFormatted === checkOutFormatted 
+      ? `for ${checkInFormatted}` 
+      : `during the period from ${checkInFormatted} to ${checkOutFormatted}`;
+
+    const bodyText = `This is to inform that the booking of Shri/Smt. ${booking.occupant} for stay at ${restHouseName} ${dateText} stands CANCELLED with effect from ${todayStr}.\n\nThe earlier authorization issued under reference DFO/MND/RH/${booking.id.toUpperCase()} is hereby revoked.\n\nAll concerned are requested to update their records accordingly and release the occupancy for other requirements.`;
     
     const splitText = doc.splitTextToSize(bodyText, 170);
     doc.text(splitText, leftMargin, currentY);
